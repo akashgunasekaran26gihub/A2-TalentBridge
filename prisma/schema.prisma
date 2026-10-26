@@ -1,0 +1,495 @@
+// Prisma Schema for A2 TalentBridge
+// Multi-sided ecosystem connecting Students, Universities, Companies, and Community/NGOs in Latvia and the EU
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Set to sqlite for local dev zero-dependency verification; switch to postgresql for production
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// AUTHENTICATION & ACCESS CONTROL (RBAC)
+// ----------------------------------------------------
+
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  passwordHash     String
+  firstName        String
+  lastName         String
+  avatarUrl        String?
+  phone            String?
+  isActive         Boolean           @default(true)
+  isEmailVerified  Boolean           @default(false)
+  gdprConsentDate  DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relationships
+  roles            UserRole[]
+  studentProfile   StudentProfile?
+  orgMemberships   OrganizationMember[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  reportsFiled     Report[]          @relation("ReportReporter")
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique // "STUDENT", "COMPANY", "UNIVERSITY", "COMMUNITY", "ADMIN"
+  description String?
+  userRoles   UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+// ----------------------------------------------------
+// ORGANIZATIONS (Companies, Universities, NGOs)
+// ----------------------------------------------------
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  orgType       String   // "COMPANY", "UNIVERSITY", "COMMUNITY"
+  registrationNo String?
+  website       String?
+  logoUrl       String?
+  description   String?
+  country       String   @default("Latvia")
+  city          String   @default("Riga")
+  address       String?
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members           OrganizationMember[]
+  companyProfile    CompanyProfile?
+  universityProfile UniversityProfile?
+  communityProfile  CommunityProfile?
+  opportunities     Opportunity[]
+  projectsSponsored Project[]
+  reportsReceived   Report[]             @relation("ReportTargetOrg")
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  roleInOrg      String       @default("MEMBER") // "OWNER", "ADMIN", "COORDINATOR", "MENTOR", "MEMBER"
+  createdAt      DateTime     @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+// ----------------------------------------------------
+// PROFILES
+// ----------------------------------------------------
+
+model StudentProfile {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  country            String    @default("Latvia")
+  city               String    @default("Riga")
+  universityName     String?   // e.g. "University of Latvia", "Riga Technical University"
+  degree             String?   // "Bachelor", "Master", "PhD", "Vocational"
+  fieldOfStudy       String?   // "Computer Science", "Economics", etc.
+  studyYear          Int?      // 1, 2, 3, 4
+  expectedGraduation DateTime?
+  headline           String?
+  bio                String?
+  portfolioUrl       String?
+  githubUrl          String?
+  linkedinUrl        String?
+  cvUrl              String?
+  availabilityStatus String    @default("AVAILABLE") // "AVAILABLE", "INTERNSHIP_ONLY", "BUSY"
+  weeklyHours        Int       @default(20)
+  preferredType      String    @default("ANY") // "REMOTE", "HYBRID", "ON_SITE", "ANY"
+  profileScore       Int       @default(0) // Computed 0 - 100%
+  isVerifiedStudent  Boolean   @default(false)
+  verifiedByOrgId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills               StudentSkill[]
+  education            Education[]
+  certifications       Certification[]
+  applications         Application[]
+  projectMemberships   ProjectMember[]
+  verifiedExperiences  VerifiedExperience[]
+  savedOpportunities   SavedOpportunity[]
+}
+
+model CompanyProfile {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  industry       String       // "Information Technology", "FinTech", "Engineering", etc.
+  companySize    String       @default("11-50") // "1-10", "11-50", "51-200", "201-500", "500+"
+  contactPerson  String?
+  contactEmail   String?
+  hiringInterests String?     // Comma separated tags
+  taxId          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model UniversityProfile {
+  id              String       @id @default(cuid())
+  organizationId  String       @unique
+  institutionType String       @default("Public University") // "Public University", "Private College", "Vocational"
+  rectorOrDean    String?
+  contactEmail    String?
+  academicPrograms String?     // Comma separated list of programs
+  partnershipTier String       @default("STANDARD") // "STANDARD", "PREMIUM", "STRATEGIC"
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model CommunityProfile {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  focusArea      String       // "Environmental", "Social Justice", "Education Outreach", etc.
+  ngoNumber      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// SKILLS & VERIFICATION ONTOLOGY
+// ----------------------------------------------------
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String   // "Technical", "Business", "Design", "Communication", "Soft Skills"
+  description String?
+  createdAt   DateTime @default(now())
+
+  studentSkills     StudentSkill[]
+  opportunitySkills OpportunitySkill[]
+}
+
+model StudentSkill {
+  id                 String    @id @default(cuid())
+  studentProfileId   String
+  skillId            String
+  selfRating         Int       @default(3) // 1 to 5
+  verificationStatus String    @default("Self-declared") // "Self-declared", "Project-verified", "Company-verified", "University-verified"
+  verifiedBy         String?   // Verifier name / Org name
+  verificationDate   DateTime?
+  evidenceUrl        String?   // Link to project, repository or credential
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  skill          Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, skillId])
+}
+
+model Education {
+  id               String    @id @default(cuid())
+  studentProfileId String
+  institutionName  String
+  degree           String
+  fieldOfStudy     String
+  startDate        DateTime
+  endDate          DateTime?
+  isCurrent        Boolean   @default(false)
+  grade            String?
+  description      String?
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+}
+
+model Certification {
+  id               String    @id @default(cuid())
+  studentProfileId String
+  title            String
+  issuingOrg       String
+  issueDate        DateTime
+  expiryDate       DateTime?
+  credentialId     String?
+  credentialUrl    String?
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// OPPORTUNITIES
+// ----------------------------------------------------
+
+model Opportunity {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  title               String
+  description         String
+  opportunityType     String   // "Internship", "Live Project", "Challenge", "Job", "Community Project"
+  locationCity        String   @default("Riga")
+  locationCountry     String   @default("Latvia")
+  remoteType          String   @default("Hybrid") // "On-site", "Hybrid", "Remote"
+  durationWeeks       Int?     @default(8)
+  stipendEur          Int?     @default(0) // 0 if unpaid/volunteer
+  capacity            Int      @default(1)
+  startDate           DateTime?
+  endDate             DateTime?
+  applicationDeadline DateTime
+  status              String   @default("Published") // "Draft", "Pending Review", "Published", "Closed", "Archived"
+  viewCount           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requiredSkills     OpportunitySkill[]
+  applications       Application[]
+  savedOpportunities SavedOpportunity[]
+  linkedProjects     Project[]
+}
+
+model OpportunitySkill {
+  id            String @id @default(cuid())
+  opportunityId String
+  skillId       String
+  isMandatory   Boolean @default(true)
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, skillId])
+}
+
+model SavedOpportunity {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  opportunityId    String
+  createdAt        DateTime @default(now())
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  opportunity    Opportunity    @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, opportunityId])
+}
+
+// ----------------------------------------------------
+// APPLICATION PIPELINE
+// ----------------------------------------------------
+
+model Application {
+  id               String   @id @default(cuid())
+  opportunityId    String
+  studentProfileId String
+  coverLetter      String?
+  resumeUrl        String?
+  status           String   @default("Submitted") // "Submitted", "Under Review", "Shortlisted", "Interview", "Accepted", "Rejected", "Withdrawn"
+  feedbackNotes    String?
+  interviewDate    DateTime?
+  matchScore       Int?     // Stored computed match percentage at application time
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  opportunity    Opportunity                @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile             @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  statusHistory  ApplicationStatusHistory[]
+
+  @@unique([opportunityId, studentProfileId])
+}
+
+model ApplicationStatusHistory {
+  id            String      @id @default(cuid())
+  applicationId String
+  status        String
+  changedByRole String      // "STUDENT", "COMPANY", "ADMIN"
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// LIVE PROJECTS, TEAMS, DELIVERABLES & WORKSPACE
+// ----------------------------------------------------
+
+model Project {
+  id              String    @id @default(cuid())
+  organizationId  String
+  opportunityId   String?
+  title           String
+  problemStatement String
+  objectives      String
+  expectedOutcomes String
+  status          String    @default("Recruiting") // "Created", "Recruiting", "Team Formed", "Active", "Submitted", "Evaluated", "Completed", "Verified"
+  targetTeamSize  Int       @default(4)
+  startDate       DateTime?
+  endDate         DateTime?
+  evaluationRubric String?  // JSON text of criteria
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  opportunity    Opportunity?         @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  members        ProjectMember[]
+  milestones     ProjectMilestone[]
+  deliverables   ProjectDeliverable[]
+  evaluations    Evaluation[]
+  verifiedExp    VerifiedExperience[]
+}
+
+model ProjectMember {
+  id               String   @id @default(cuid())
+  projectId        String
+  studentProfileId String
+  roleInTeam       String   @default("Member") // "Team Leader", "Member", "Researcher", "Developer", "Designer"
+  joinedAt         DateTime @default(now())
+
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, studentProfileId])
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  dueDate     DateTime
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  orderIndex  Int       @default(0)
+
+  project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverables ProjectDeliverable[]
+}
+
+model ProjectDeliverable {
+  id          String    @id @default(cuid())
+  projectId   String
+  milestoneId String?
+  title       String
+  fileUrl     String
+  fileName    String
+  submittedBy String    // Student name
+  status      String    @default("Submitted") // "Submitted", "Approved", "Revision Requested"
+  feedback    String?
+  createdAt   DateTime  @default(now())
+
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+}
+
+model Evaluation {
+  id               String   @id @default(cuid())
+  projectId        String
+  evaluatorId      String   // User or Organization ID
+  evaluatorRole    String   // "COMPANY_MENTOR", "UNIVERSITY_PROFESSOR"
+  technicalScore   Int      // 1 to 5
+  teamworkScore    Int      // 1 to 5
+  deliveryScore    Int      // 1 to 5
+  overallScore     Float
+  detailedFeedback String
+  recommendation   String?  // e.g. "Highly recommended for junior software engineer role"
+  createdAt        DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// VERIFIED EXPERIENCE & DIGITAL CREDENTIAL FOUNDATION
+// ----------------------------------------------------
+
+model VerifiedExperience {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  projectId        String
+  projectTitle     String
+  organizationName String
+  durationWeeks    Int
+  skillsVerified   String   // Comma separated list e.g. "React, Node.js, Team Leadership"
+  verifiedBy       String   // Authorized signer
+  verifiedAt       DateTime @default(now())
+  status           String   @default("Verified")
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  credential     Credential?
+}
+
+model Credential {
+  id                   String   @id @default(cuid())
+  verifiedExperienceId String   @unique
+  credentialCode       String   @unique // e.g. "A2-LV-2026-X89K"
+  publicUrl            String
+  qrCodeUrl            String?
+  issuedAt             DateTime @default(now())
+  isValid              Boolean  @default(true)
+
+  verifiedExperience VerifiedExperience @relation(fields: [verifiedExperienceId], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// NOTIFICATIONS, GOVERNANCE & AUDIT LOGS
+// ----------------------------------------------------
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   // "APPLICATION", "PROJECT", "EVALUATION", "SYSTEM"
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  reporterId    String
+  targetOrgId   String?
+  resourceType  String   // "OPPORTUNITY", "PROJECT", "USER", "ORGANIZATION"
+  resourceId    String
+  reason        String
+  status        String   @default("PENDING") // "PENDING", "RESOLVED", "DISMISSED"
+  resolution    String?
+  createdAt     DateTime @default(now())
+
+  reporter  User          @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetOrg Organization? @relation("ReportTargetOrg", fields: [targetOrgId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  action       String   // e.g. "USER_LOGIN", "OPPORTUNITY_CREATED", "EXPERIENCE_VERIFIED"
+  resourceType String
+  resourceId   String?
+  details      String?  // JSON text
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
