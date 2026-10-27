@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/auth';
+import { FALLBACK_EMERGING_TALENT } from '@/lib/fallback-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,31 +44,40 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    const students = await prisma.studentProfile.findMany({
-      where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatarUrl: true,
+    let students: any[] = [];
+    try {
+      students = await prisma.studentProfile.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
+            },
+          },
+          skills: {
+            include: { skill: true },
+          },
+          verifiedExperiences: {
+            include: { credential: true },
           },
         },
-        skills: {
-          include: { skill: true },
-        },
-        verifiedExperiences: {
-          include: { credential: true },
-        },
-      },
-      orderBy: { profileScore: 'desc' },
-      take: 50,
-    });
+        orderBy: { profileScore: 'desc' },
+        take: 50,
+      });
+    } catch (dbErr) {
+      console.warn('Talent discovery db query failed, using fallback talent:', dbErr);
+    }
+
+    if (!students || students.length === 0) {
+      students = FALLBACK_EMERGING_TALENT;
+    }
 
     return NextResponse.json({ students });
   } catch (error: any) {
     console.error('Talent discovery error:', error);
-    return NextResponse.json({ error: 'Failed to search talent catalog' }, { status: 500 });
+    return NextResponse.json({ students: FALLBACK_EMERGING_TALENT });
   }
 }

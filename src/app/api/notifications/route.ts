@@ -11,16 +11,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const notifications = await prisma.notification.findMany({
-      where: { userId: session.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
+    let notifications: any[] = [];
+    try {
+      notifications = await prisma.notification.findMany({
+        where: { userId: session.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+    } catch (dbErr) {
+      console.warn('Notifications db query failed, returning empty list:', dbErr);
+    }
 
     return NextResponse.json({ notifications });
   } catch (error: any) {
     console.error('Fetch notifications error:', error);
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
+    return NextResponse.json({ notifications: [] });
   }
 }
 

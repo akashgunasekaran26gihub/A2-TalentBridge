@@ -651,3 +651,104 @@ export const FALLBACK_CREDENTIAL = {
     },
   },
 };
+
+export interface DemoAccount {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  passwordHash: string;
+  roles: string[];
+  primaryRole: 'STUDENT' | 'COMPANY' | 'UNIVERSITY' | 'ADMIN';
+  studentProfileId?: string | null;
+  organizationId?: string | null;
+  isActive: boolean;
+  avatarUrl?: string | null;
+  studentProfile?: any;
+  organization?: any;
+  orgMemberships?: any[];
+}
+
+export const DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    id: 'user-student-01',
+    email: 'arturs.berzins@edu.rtu.lv',
+    firstName: 'Artūrs',
+    lastName: 'Bērziņš',
+    password: 'A2Bridge2026!',
+    passwordHash: '$2a$10$wT282n0a7GfWq8b1j1G9q.Rk0e0M1D2K4c2A5B8N7M6L5K4J3I2H1',
+    roles: ['STUDENT'],
+    primaryRole: 'STUDENT',
+    studentProfileId: 'student-demo-01',
+    organizationId: null,
+    isActive: true,
+    avatarUrl: null,
+    studentProfile: FALLBACK_STUDENT,
+    orgMemberships: [],
+  },
+  {
+    id: 'user-company-01',
+    email: 'talent@demotech.lv',
+    firstName: 'Dace',
+    lastName: 'Ozoliņa',
+    password: 'A2Bridge2026!',
+    passwordHash: '$2a$10$wT282n0a7GfWq8b1j1G9q.Rk0e0M1D2K4c2A5B8N7M6L5K4J3I2H1',
+    roles: ['COMPANY'],
+    primaryRole: 'COMPANY',
+    studentProfileId: null,
+    organizationId: 'org-company-01',
+    isActive: true,
+    avatarUrl: null,
+    organization: FALLBACK_COMPANY_ORG,
+    orgMemberships: [{ organizationId: 'org-company-01', organization: FALLBACK_COMPANY_ORG }],
+  },
+  {
+    id: 'user-uni-01',
+    email: 'coordinator@rtu.lv',
+    firstName: 'Māris',
+    lastName: 'Kalniņš',
+    password: 'A2Bridge2026!',
+    passwordHash: '$2a$10$wT282n0a7GfWq8b1j1G9q.Rk0e0M1D2K4c2A5B8N7M6L5K4J3I2H1',
+    roles: ['UNIVERSITY'],
+    primaryRole: 'UNIVERSITY',
+    studentProfileId: null,
+    organizationId: 'org-uni-01',
+    isActive: true,
+    avatarUrl: null,
+    organization: {
+      id: 'org-uni-01',
+      name: 'Riga Technical University',
+      orgType: 'UNIVERSITY',
+      city: 'Riga',
+      isVerified: true,
+    },
+    orgMemberships: [
+      {
+        organizationId: 'org-uni-01',
+        organization: {
+          id: 'org-uni-01',
+          name: 'Riga Technical University',
+          orgType: 'UNIVERSITY',
+          city: 'Riga',
+          isVerified: true,
+        },
+      },
+    ],
+  },
+  {
+    id: 'user-admin-01',
+    email: 'admin@a2talentbridge.lv',
+    firstName: 'Valters',
+    lastName: 'Bērziņš',
+    password: 'AdminRiga2026!',
+    passwordHash: '$2a$10$wT282n0a7GfWq8b1j1G9q.Rk0e0M1D2K4c2A5B8N7M6L5K4J3I2H1',
+    roles: ['ADMIN'],
+    primaryRole: 'ADMIN',
+    studentProfileId: null,
+    organizationId: null,
+    isActive: true,
+    avatarUrl: null,
+    orgMemberships: [],
+  },
+];

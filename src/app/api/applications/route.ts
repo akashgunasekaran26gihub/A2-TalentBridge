@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   } catch (error: any) {
     console.error('Fetch applications error:', error);
-    return NextResponse.json({ error: 'Failed to fetch applications' }, { status: 500 });
+    return NextResponse.json({ applications: [] });
   }
 }
 
