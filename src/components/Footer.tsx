@@ -79,7 +79,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom copyright */}
+        {/* Bottom copyright & credits */}
         <div
           style={{
             borderTop: '1px solid var(--border-hairline)',
@@ -93,8 +93,12 @@ export default function Footer() {
             gap: '1rem',
           }}
         >
-          <div>
-            © 2026 A2 TalentBridge. All rights reserved.
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem 1rem' }}>
+            <span>© 2026 A2 TalentBridge. All rights reserved.</span>
+            <span style={{ color: 'var(--border-medium)' }}>•</span>
+            <span>Planned and R&amp;D by Dr. Arunkumar and Chaminda</span>
+            <span style={{ color: 'var(--border-medium)' }}>•</span>
+            <span style={{ fontWeight: 600, color: 'var(--nordic-slate)' }}>Designed by Elevon Stack</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontWeight: 600 }}>
             <span>Riga, Latvia · Europe</span>
