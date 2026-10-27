@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { FALLBACK_OPPORTUNITIES } from '@/lib/fallback-data';
 import HeroSection from '@/components/landing/HeroSection';
 import TrustStrip from '@/components/landing/TrustStrip';
 import HowItWorksSection from '@/components/landing/HowItWorksSection';
@@ -28,15 +29,24 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const featuredOpportunities = await prisma.opportunity.findMany({
-    where: { status: 'Published' },
-    include: {
-      organization: true,
-      requiredSkills: { include: { skill: true } },
-    },
-    take: 3,
-    orderBy: { createdAt: 'desc' },
-  });
+  let featuredOpportunities: any[] = [];
+  try {
+    featuredOpportunities = await prisma.opportunity.findMany({
+      where: { status: 'Published' },
+      include: {
+        organization: true,
+        requiredSkills: { include: { skill: true } },
+      },
+      take: 3,
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (err) {
+    console.warn('Database query failed in HomePage, falling back to curated opportunities:', err);
+  }
+
+  if (!featuredOpportunities || featuredOpportunities.length === 0) {
+    featuredOpportunities = FALLBACK_OPPORTUNITIES.slice(0, 3);
+  }
 
   return (
     <div className="landing-page-wrapper">

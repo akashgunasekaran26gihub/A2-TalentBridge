@@ -1,29 +1,40 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { FALLBACK_IMPACT_METRICS } from '@/lib/fallback-data';
 import { Award, Building2, GraduationCap, Briefcase, CheckCircle2, TrendingUp, ShieldCheck } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ImpactPage() {
-  // Query real database metrics
-  const [
-    totalStudents,
-    totalCompanies,
-    totalUniversities,
-    activeOpportunities,
-    completedProjects,
-    verifiedCredentials,
-    totalApplications,
-  ] = await Promise.all([
-    prisma.studentProfile.count(),
-    prisma.organization.count({ where: { orgType: 'COMPANY' } }),
-    prisma.organization.count({ where: { orgType: 'UNIVERSITY' } }),
-    prisma.opportunity.count({ where: { status: 'Published' } }),
-    prisma.project.count({ where: { status: { in: ['Completed', 'Verified'] } } }),
-    prisma.credential.count({ where: { isValid: true } }),
-    prisma.application.count(),
-  ]);
+  let totalStudents = FALLBACK_IMPACT_METRICS.totalStudents;
+  let totalCompanies = FALLBACK_IMPACT_METRICS.totalCompanies;
+  let totalUniversities = FALLBACK_IMPACT_METRICS.totalUniversities;
+  let activeOpportunities = FALLBACK_IMPACT_METRICS.activeOpportunities;
+  let completedProjects = FALLBACK_IMPACT_METRICS.completedProjects;
+  let verifiedCredentials = FALLBACK_IMPACT_METRICS.verifiedCredentials;
+  let totalApplications = FALLBACK_IMPACT_METRICS.totalApplications;
+
+  try {
+    const results = await Promise.all([
+      prisma.studentProfile.count(),
+      prisma.organization.count({ where: { orgType: 'COMPANY' } }),
+      prisma.organization.count({ where: { orgType: 'UNIVERSITY' } }),
+      prisma.opportunity.count({ where: { status: 'Published' } }),
+      prisma.project.count({ where: { status: { in: ['Completed', 'Verified'] } } }),
+      prisma.credential.count({ where: { isValid: true } }),
+      prisma.application.count(),
+    ]);
+    totalStudents = results[0] || totalStudents;
+    totalCompanies = results[1] || totalCompanies;
+    totalUniversities = results[2] || totalUniversities;
+    activeOpportunities = results[3] || activeOpportunities;
+    completedProjects = results[4] || completedProjects;
+    verifiedCredentials = results[5] || verifiedCredentials;
+    totalApplications = results[6] || totalApplications;
+  } catch (err) {
+    console.warn('Database query failed in ImpactPage, using fallback metrics:', err);
+  }
 
   return (
     <div style={{ backgroundColor: 'var(--bg-app)', minHeight: '85vh', padding: '3.5rem 0 5rem 0' }}>

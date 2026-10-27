@@ -22,9 +22,7 @@
 .env
 
 # Prisma dev sqlite database
-prisma/*.db
 prisma/*.db-journal
-*.db
 *.db-journal
 
 # TypeScript

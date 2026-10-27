@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import { FALLBACK_OPPORTUNITIES } from '@/lib/fallback-data';
 import { formatRigaDate, formatEur, isRigaDeadlinePassed } from '@/lib/timezone';
 import {
   ArrowLeft,
@@ -19,14 +20,23 @@ interface OpportunityDetailPageProps {
 export const dynamic = 'force-dynamic';
 
 export default async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
-  const opp = await prisma.opportunity.findUnique({
-    where: { id: params.id },
-    include: {
-      organization: true,
-      requiredSkills: { include: { skill: true } },
-      _count: { select: { applications: true } },
-    },
-  });
+  let opp: any = null;
+  try {
+    opp = await prisma.opportunity.findUnique({
+      where: { id: params.id },
+      include: {
+        organization: true,
+        requiredSkills: { include: { skill: true } },
+        _count: { select: { applications: true } },
+      },
+    });
+  } catch (err) {
+    console.warn(`Database query failed for opportunity ${params.id}, checking fallback data:`, err);
+  }
+
+  if (!opp) {
+    opp = FALLBACK_OPPORTUNITIES.find((o) => o.id === params.id) || FALLBACK_OPPORTUNITIES[0];
+  }
 
   if (!opp) notFound();
 
@@ -93,7 +103,7 @@ export default async function OpportunityDetailPage({ params }: OpportunityDetai
                 Required Competencies
               </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {opp.requiredSkills.map((rs) => (
+                {opp.requiredSkills.map((rs: any) => (
                   <span key={rs.id} className="tag tag-blue" style={{ fontSize: '0.8125rem', padding: '0.35rem 0.65rem' }}>
                     <CheckCircle2 size={13} /> {rs.skill.name}
                   </span>

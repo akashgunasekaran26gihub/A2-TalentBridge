@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { FALLBACK_OPPORTUNITIES } from '@/lib/fallback-data';
 import { formatRigaDate, formatEur } from '@/lib/timezone';
 import { Search, MapPin, Filter, Briefcase } from 'lucide-react';
 
@@ -34,14 +35,35 @@ export default async function OpportunitiesPage({ searchParams }: OpportunitiesP
   if (remoteFilter) whereClause.remoteType = remoteFilter;
   if (cityFilter) whereClause.locationCity = cityFilter;
 
-  const opportunities = await prisma.opportunity.findMany({
-    where: whereClause,
-    include: {
-      organization: true,
-      requiredSkills: { include: { skill: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  let opportunities: any[] = [];
+  try {
+    opportunities = await prisma.opportunity.findMany({
+      where: whereClause,
+      include: {
+        organization: true,
+        requiredSkills: { include: { skill: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (err) {
+    console.warn('Database query failed in OpportunitiesPage, using fallback data:', err);
+  }
+
+  if (!opportunities || opportunities.length === 0) {
+    opportunities = FALLBACK_OPPORTUNITIES.filter((opp) => {
+      if (typeFilter && opp.opportunityType !== typeFilter) return false;
+      if (remoteFilter && opp.remoteType !== remoteFilter) return false;
+      if (cityFilter && opp.locationCity.toLowerCase() !== cityFilter.toLowerCase()) return false;
+      if (query) {
+        const q = query.toLowerCase();
+        const matchesTitle = opp.title.toLowerCase().includes(q);
+        const matchesDesc = opp.description.toLowerCase().includes(q);
+        const matchesOrg = opp.organization.name.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesOrg) return false;
+      }
+      return true;
+    });
+  }
 
   return (
     <div style={{ backgroundColor: 'var(--bg-app)', minHeight: '85vh', padding: '3rem 0 5rem 0' }}>
@@ -161,7 +183,7 @@ export default async function OpportunitiesPage({ searchParams }: OpportunitiesP
 
                   {/* 5. Skills (Max 4 visible rule) */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1.25rem' }}>
-                    {opp.requiredSkills.slice(0, 4).map((rs) => (
+                    {opp.requiredSkills.slice(0, 4).map((rs: any) => (
                       <span key={rs.id} className="tag tag-neutral">
                         {rs.skill.name}
                       </span>

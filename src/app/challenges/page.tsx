@@ -1,28 +1,38 @@
 import React from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { FALLBACK_CHALLENGES } from '@/lib/fallback-data';
 import { formatRigaDate, formatEur } from '@/lib/timezone';
 import { Building2, Calendar, ArrowRight, Trophy } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ChallengesCatalogPage() {
-  const challenges = await prisma.opportunity.findMany({
-    where: {
-      opportunityType: 'Challenge',
-      status: 'Published',
-    },
-    include: {
-      organization: true,
-      requiredSkills: {
-        include: { skill: true },
+  let challenges: any[] = [];
+  try {
+    challenges = await prisma.opportunity.findMany({
+      where: {
+        opportunityType: 'Challenge',
+        status: 'Published',
       },
-      _count: {
-        select: { applications: true },
+      include: {
+        organization: true,
+        requiredSkills: {
+          include: { skill: true },
+        },
+        _count: {
+          select: { applications: true },
+        },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+      orderBy: { createdAt: 'desc' },
+    });
+  } catch (err) {
+    console.warn('Database query failed in ChallengesCatalogPage, using fallback data:', err);
+  }
+
+  if (!challenges || challenges.length === 0) {
+    challenges = FALLBACK_CHALLENGES;
+  }
 
   return (
     <div style={{ backgroundColor: 'var(--bg-app)', minHeight: '85vh', padding: '3rem 0 5rem 0' }}>
@@ -73,7 +83,7 @@ export default async function ChallengesCatalogPage() {
 
                 {/* Skills - max 4 visible */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1.5rem' }}>
-                  {c.requiredSkills.slice(0, 4).map((rs) => (
+                  {c.requiredSkills.slice(0, 4).map((rs: any) => (
                     <span key={rs.id} className="tag tag-neutral">
                       {rs.skill.name}
                     </span>
