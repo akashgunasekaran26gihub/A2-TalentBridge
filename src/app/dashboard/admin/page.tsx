@@ -161,29 +161,37 @@ export default async function AdminDashboardPage() {
       >
         <MetricCard
           title="Total Platform Users"
+          label="Total Platform Users"
           value={usersCount}
           subtitle="Latvia academic & corporate registry"
+          subtext="Latvia academic & corporate registry"
           trend={{ value: 14, isPositive: true }}
           icon={Users}
         />
         <MetricCard
           title="Vetted Organizations"
+          label="Vetted Organizations"
           value={organizationsCount}
           subtitle="Universities & Industry Leaders"
+          subtext="Universities & Industry Leaders"
           trend={{ value: 8, isPositive: true }}
           icon={Building2}
         />
         <MetricCard
           title="Active Listings"
+          label="Active Listings"
           value={opportunitiesCount}
           subtitle="Internships, Practicums & Theses"
+          subtext="Internships, Practicums & Theses"
           trend={{ value: 18, isPositive: true }}
           icon={Briefcase}
         />
         <MetricCard
           title="Verified Credentials"
+          label="Verified Credentials"
           value={credentialsCount}
           subtitle="Tamper-proof verifiable hashes"
+          subtext="Tamper-proof verifiable hashes"
           trend={{ value: 24, isPositive: true }}
           icon={FileCheck}
         />
